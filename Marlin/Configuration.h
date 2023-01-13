@@ -2301,7 +2301,7 @@
 
 // @section motion
 
- * Nozzle Park
+/* Nozzle Park
  *
  * Park the nozzle at the given XYZ position on idle or G27.
  *
