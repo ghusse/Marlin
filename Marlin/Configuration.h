@@ -37,7 +37,7 @@
  *
  * Advanced settings can be found in Configuration_adv.h
  */
-#define CONFIGURATION_H_VERSION 02010200
+#define CONFIGURATION_H_VERSION 02010300
 
 //===========================================================================
 //============================= Getting Started =============================
@@ -272,7 +272,13 @@
   #endif
 #endif
 
-// A dual-nozzle that uses a servomotor to raise/lower one (or both) of the nozzles
+// Switch extruders by bumping the toolhead. Requires EVENT_GCODE_TOOLCHANGE_#.
+//#define MECHANICAL_SWITCHING_EXTRUDER
+
+/**
+ * A dual-nozzle that uses a servomotor to raise/lower one (or both) of the nozzles.
+ * Can be combined with SWITCHING_EXTRUDER.
+ */
 //#define SWITCHING_NOZZLE
 #if ENABLED(SWITCHING_NOZZLE)
   #define SWITCHING_NOZZLE_SERVO_NR 0
@@ -280,6 +286,9 @@
   #define SWITCHING_NOZZLE_SERVO_ANGLES { 0, 90 }   // Angles for E0, E1 (single servo) or lowered/raised (dual servo)
   #define SWITCHING_NOZZLE_SERVO_DWELL 2500         // Dwell time to wait for servo to make physical move
 #endif
+
+// Switch nozzles by bumping the toolhead. Requires EVENT_GCODE_TOOLCHANGE_#.
+//#define MECHANICAL_SWITCHING_NOZZLE
 
 /**
  * Two separate X-carriages with extruders that connect to a moving part
@@ -881,8 +890,9 @@
 // Enable for Polargraph Kinematics
 //#define POLARGRAPH
 #if ENABLED(POLARGRAPH)
-  #define POLARGRAPH_MAX_BELT_LEN 1035.0
-  #define DEFAULT_SEGMENTS_PER_SECOND 5
+  #define POLARGRAPH_MAX_BELT_LEN  1035.0 // (mm) Belt length at full extension. Override with M665 H.
+  #define DEFAULT_SEGMENTS_PER_SECOND 5   // Move segmentation based on duration
+  #define PEN_UP_DOWN_MENU                // Add "Pen Up" and "Pen Down" to the MarlinUI menu
 #endif
 
 // @section delta
@@ -1387,8 +1397,10 @@
 /**
  * Z Servo Probe, such as an endstop switch on a rotating arm.
  */
-//#define Z_PROBE_SERVO_NR 0       // Defaults to SERVO 0 connector.
-//#define Z_SERVO_ANGLES { 70, 0 } // Z Servo Deploy and Stow angles
+//#define Z_PROBE_SERVO_NR 0          // Defaults to SERVO 0 connector.
+//#define Z_SERVO_ANGLES { 70, 0 }    // Z Servo Deploy and Stow angles
+//#define Z_SERVO_MEASURE_ANGLE 45    // Use if the servo must move to a "free" position for measuring after deploy.
+//#define Z_SERVO_INTERMEDIATE_STOW   // Stow the probe between points.
 
 /**
  * The BLTouch probe uses a Hall effect sensor and emulates a servo.
@@ -1681,15 +1693,15 @@
 
 // Disable axis steppers immediately when they're not being stepped.
 // WARNING: When motors turn off there is a chance of losing position accuracy!
-#define DISABLE_X false
-#define DISABLE_Y false
-#define DISABLE_Z false
-//#define DISABLE_I false
-//#define DISABLE_J false
-//#define DISABLE_K false
-//#define DISABLE_U false
-//#define DISABLE_V false
-//#define DISABLE_W false
+//#define DISABLE_X
+//#define DISABLE_Y
+//#define DISABLE_Z
+//#define DISABLE_I
+//#define DISABLE_J
+//#define DISABLE_K
+//#define DISABLE_U
+//#define DISABLE_V
+//#define DISABLE_W
 
 // Turn off the display blinking that warns about possible accuracy reduction
 //#define DISABLE_REDUCED_ACCURACY_WARNING
@@ -2034,7 +2046,7 @@
     #define EXTRAPOLATE_BEYOND_GRID
 
     //
-    // Experimental Subdivision of the grid by Catmull-Rom method.
+    // Subdivision of the grid by Catmull-Rom method.
     // Synthesizes intermediate points to produce a more detailed mesh.
     //
     //#define ABL_BILINEAR_SUBDIVISION
@@ -2066,6 +2078,25 @@
                                           // as the Z-Height correction value.
 
   //#define UBL_MESH_WIZARD         // Run several commands in a row to get a complete mesh
+
+  /**
+   * Probing not allowed within the position of an obstacle.
+   */
+  //#define AVOID_OBSTACLES
+  #if ENABLED(AVOID_OBSTACLES)
+    #define CLIP_W  23  // Bed clip width, should be padded a few mm over its physical size
+    #define CLIP_H  14  // Bed clip height, should be padded a few mm over its physical size
+
+    // Obstacle Rectangles defined as { X1, Y1, X2, Y2 }
+    #define OBSTACLE1 { (X_BED_SIZE) / 4     - (CLIP_W) / 2,                       0, (X_BED_SIZE) / 4     + (CLIP_W) / 2, CLIP_H }
+    #define OBSTACLE2 { (X_BED_SIZE) * 3 / 4 - (CLIP_W) / 2,                       0, (X_BED_SIZE) * 3 / 4 + (CLIP_W) / 2, CLIP_H }
+    #define OBSTACLE3 { (X_BED_SIZE) / 4     - (CLIP_W) / 2, (Y_BED_SIZE) - (CLIP_H), (X_BED_SIZE) / 4     + (CLIP_W) / 2, Y_BED_SIZE }
+    #define OBSTACLE4 { (X_BED_SIZE) * 3 / 4 - (CLIP_W) / 2, (Y_BED_SIZE) - (CLIP_H), (X_BED_SIZE) * 3 / 4 + (CLIP_W) / 2, Y_BED_SIZE }
+
+    // The probed grid must be inset for G29 J. This is okay, since it is
+    // only used to compute a linear transformation for the mesh itself.
+    #define G29J_MESH_TILT_MARGIN ((CLIP_H) + 1)
+  #endif
 
 #elif ENABLED(MESH_BED_LEVELING)
 
@@ -2163,6 +2194,7 @@
 #if ENABLED(Z_SAFE_HOMING)
   #define Z_SAFE_HOMING_X_POINT X_CENTER  // X point for Z homing
   #define Z_SAFE_HOMING_Y_POINT Y_CENTER  // Y point for Z homing
+  //#define Z_SAFE_HOMING_POINT_ABSOLUTE  // Ignore home offsets (M206) for Z homing position
 #endif
 
 // Homing speeds (linear=mm/min, rotational=°/min)
@@ -2323,7 +2355,7 @@
 #endif
 
 /**
- * Clean Nozzle Feature -- EXPERIMENTAL
+ * Clean Nozzle Feature
  *
  * Adds the G12 command to perform a nozzle cleaning process.
  *
@@ -2357,7 +2389,6 @@
  *       Before starting, the nozzle moves to NOZZLE_CLEAN_START_POINT.
  *
  *   Caveats: The ending Z should be the same as starting Z.
- * Attention: EXPERIMENTAL. G-code arguments may change.
  */
 //#define NOZZLE_CLEAN_FEATURE
 
@@ -2725,7 +2756,7 @@
 
 //
 // Elefu RA Board Control Panel
-// http://www.elefu.com/index.php?route=product/product&product_id=53
+// https://web.archive.org/web/20140823033947/http://www.elefu.com/index.php?route=product/product&product_id=53
 //
 //#define RA_CONTROL_PANEL
 
@@ -3039,7 +3070,7 @@
  *  - Copy the downloaded DWIN_SET folder to the SD card.
  *
  * IA_CREALITY (T5UID1)
- *  - Download https://github.com/InsanityAutomation/Marlin/raw/CrealityDwin2.0_Bleeding/TM3D_Combined480272_Landscape_V7.7z
+ *  - Download https://github.com/InsanityAutomation/Marlin/raw/CrealityDwin_2.0/TM3D_Combined480272_Landscape_V7.7z
  *  - Copy the downloaded DWIN_SET folder to the SD card.
  *
  * Flash display with DGUS Displays for Marlin:
@@ -3051,6 +3082,8 @@
 //#define DGUS_LCD_UI ORIGIN
 #if DGUS_UI_IS(MKS)
   #define USE_MKS_GREEN_UI
+#elif DGUS_UI_IS(IA_CREALITY)
+  //#define LCD_SCREEN_ROTATE 90 // Portrait Mode or 800x480 displays
 #endif
 
 //
@@ -3415,7 +3448,8 @@
   // Use some of the NeoPixel LEDs for static (background) lighting
   //#define NEOPIXEL_BKGD_INDEX_FIRST   0 // Index of the first background LED
   //#define NEOPIXEL_BKGD_INDEX_LAST    5 // Index of the last background LED
-  //#define NEOPIXEL_BKGD_COLOR { 255, 255, 255, 0 }  // R, G, B, W
+  //#define NEOPIXEL_BKGD_COLOR         { 255, 255, 255, 0 }  // R, G, B, W
+  //#define NEOPIXEL_BKGD_TIMEOUT_COLOR {  25,  25,  25, 0 }  // R, G, B, W
   //#define NEOPIXEL_BKGD_ALWAYS_ON       // Keep the backlight on when other NeoPixels are off
 #endif
 
