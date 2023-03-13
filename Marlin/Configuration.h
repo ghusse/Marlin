@@ -1557,11 +1557,11 @@
  *     |    [-]    |
  *     O-- FRONT --+
  */
-#define NOZZLE_TO_PROBE_OFFSET { -29.1, -41.3, -4.46 }
+#define NOZZLE_TO_PROBE_OFFSET { -29.1, -41.3, -4.38 }
 
 // Most probes should stay away from the edges of the bed, but
 // with NOZZLE_AS_PROBE this can be negative for a wider probing area.
-#define PROBING_MARGIN 10
+#define PROBING_MARGIN 25
 
 // X and Y axis travel   (mm/min) between probes
 #define XY_PROBE_FEEDRATE (150*60)
